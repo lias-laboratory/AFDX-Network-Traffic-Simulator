@@ -24,11 +24,11 @@ def bag_uss(debut,fin):
 class generateur:
     """
     seed               : The seed controls the entire randomness of the generator
-    nb_flux_range      : (min, max) number of flows to generate (default: 3 * nb_switch)
+    nb_flux_range      : number of flows to generate (default: 3 * nb_switch)
     politique_service  : "FIFO" or "FP/FIFO"
     taille_range       : (min, max) Ethernet frame size in bytes, constrained to the range [64, 1518]
     bag_range          : (min, max) BAG in microseconds, sampled from powers of 2
-    nom_topologie      : "single_node","line1I1O","lineNI1O","line","join","ring","random"
+    nom_topologie      : "single_node","line1I/1O","lineNI/1O","lineNI/NO","tree","ring","random"
     nb_switch          : number of Switche
     nb_es              : number of end systems (default: 3 * nb_switch)
     capacite_port_mbps : output port capacity (rate)
@@ -65,8 +65,8 @@ class generateur:
         # Minimum number of switches required per topology
         minimums = {
             "single_node": 1,
-            "line1": 2, "line2": 2, "line3": 2,
-            "join": 3,
+            "line1I/1O": 2, "lineNI/1O": 2, "lineNI/NO": 2,
+            "tree": 3, "Tree":3,
             "ring": 4, "Anneau": 4,
             "random": 2,
         }
@@ -83,7 +83,7 @@ class generateur:
             switches.append(Switch(id="SW1"))
 
         #line1I/1O and lineNI/1O and line Topology    
-        elif self.nom_topologie in ("line1", "line2", "line3"):   
+        elif self.nom_topologie in ("line1I/1O", "lineNI/1O", "lineNI/NO"):   
             #Create all existing switches
             for i in range(1, n + 1):
                 switches.append(Switch(id=f"SW{i}"))
@@ -104,8 +104,8 @@ class generateur:
                 switches[i - 1].intput_port.append(f"SW{i + 1}")
                 switches[i].intput_port.append(f"SW{i}")
 
-        #Join topology
-        elif self.nom_topologie == "join":
+        #tree topology
+        elif self.nom_topologie in ("tree","Tree"):
             #Binary tree of switches converging on a root switch SW1
             #n must be of the form 2^(h+1) - 1; otherwise, it is rounded up to the next odd number 
             h = 0
@@ -133,7 +133,7 @@ class generateur:
                 switches[parent - 1].intput_port.append(f"SW{i}")
                 switches[i - 1].intput_port.append(f"SW{parent}")
             #Leaf switch storage
-            self._feuilles_join = [f"SW{i}" for i in range(n_total // 2 + 1, n_total + 1)]
+            self._feuilles_tree = [f"SW{i}" for i in range(n_total // 2 + 1, n_total + 1)]
 
         #Ring topology
         elif self.nom_topologie in ("ring", "Anneau"):
@@ -242,12 +242,12 @@ class generateur:
         """
         end_systems=[]   #list for storing end systems
         #Topologies with multiple sources and a single destination 
-        if self.nom_topologie in("single_node","line1","line2"):
+        if self.nom_topologie in("single_node","line1I/1O","lineNI/1O"):
             #Retrieve all switches except the last one.       
-            if self.nom_topologie == "line2":
+            if self.nom_topologie == "lineNI/1O":
                 switches_source = [switch.id for switch in switches]
             elif len(switches) > 1:
-                switches_source = [switches[0].id]   # line1 : uniquement SW1
+                switches_source = [switches[0].id]   # line1I/1O : uniquement SW1
             else:
                 switches_source = [switches[0].id]   # single_node
             n_dest = 1
@@ -283,9 +283,9 @@ class generateur:
                             debit_Mbps=self.capacite_port_mbps
                         ))
                     break
-        #Join Topology
-        elif self.nom_topologie =="join":
-            feuilles = getattr(self, "_feuilles_join", None) or [switches[-1].id]
+        #tree Topology
+        elif self.nom_topologie =="tree":
+            feuilles = getattr(self, "_feuilles_tree", None) or [switches[-1].id]
             nb_feuilles = len(feuilles)
             n_dest = 1
             n_src = max(1, self.nb_es - n_dest)
@@ -318,7 +318,7 @@ class generateur:
                     debit_Mbps=self.capacite_port_mbps
             ))
         #lineNI/NO Topology
-        elif self.nom_topologie =="line3":
+        elif self.nom_topologie =="lineNI/NO":
             switches_par_id = {sw.id: sw for sw in switches}
             switches_ids = [sw.id for sw in switches]
             nb_sw=len(switches)
@@ -415,8 +415,8 @@ class generateur:
 
         #initialize an empty list to store the generated flows
         flows=[]  
-        #Topology with single destination(single_node,line1,line2,join)  
-        if self.nom_topologie in("single_node","line1","line2","join"):
+        #Topology with single destination(single_node,line1I/1O,lineNI/1O,tree)  
+        if self.nom_topologie in("single_node","line1I/1O","lineNI/1O","tree"):
             #Get the existing end systems (source and destination)
             sources = [es for es in end_systems[:-1]]
             destination = end_systems[-1]
@@ -433,7 +433,7 @@ class generateur:
                                 destination=destination.id
                             ))
         #line Topology         
-        elif self.nom_topologie in("line3"):
+        elif self.nom_topologie in("lineNI/NO"):
            #Garantir le chemin strictement gauche --> droit, roles fixes
             def idx(sw_id):
                 return int(sw_id[2:])
@@ -447,7 +447,7 @@ class generateur:
             ]
             if not paires_valides:
                 raise ValueError(
-                   "line3: no valid source/destination pair (left->right) "
+                   "lineNI/NO: no valid source/destination pair (left->right) "
                     "with this number of ES and switches."
                 )
             #Create the flows
@@ -807,85 +807,86 @@ def sauvegarder_resultat(configuration,nom_fichier):
                 "bag_us":fl.bag_us,
                 "chemin":fl.chemin
             })
-    
     with open(nom_fichier,"w") as f:
         json.dump(results,f)
 def main():      
     # Command-line argument parser configuration
     parser = argparse.ArgumentParser(
         prog="AFDX_simulator",
-        epilog="Example: python generateur.py --topology ligne --nb-switch 4 --nombre_End_System 6 --nb-flux 10-50 --size 64-1518 --bag 128-128000 --seed 42"
+        epilog="Example: python generateur.py --topology lineNI/NO --nb_switch 4 --nb_end_system 6 --nb_flux 20 --size 64-1518 --bag 128-128000 --seed 42"
     )
 
     # Arguments of topology
     parser.add_argument(
-        "-topo", "--topology",
+        "-T", "--topology",
         type=str,
-        choices=["single_node", "line1", "line2", "line3", "join", "ring","random"],
+        choices=["single_node", "line1I/1O", "lineNI/1O", "lineNI/NO", "tree", "ring","random"],
         default="single_node",
         help="Type of Network Topology (default: single_node)"
     )
     parser.add_argument(
-        "-cap", "--capacity_port",
-        type=float,
-        default=100.0,
-        help="Capacity of each output port in Mbps (default: 100.0)"
-    )
-    parser.add_argument(
-        "-nbsw", "--nb-switch",
+        "-Nsw", "--nb_switch",
         type=int,
         default=1,
         help="Number of Switch (default: 1)"
     )
 
-    # Arguments pour les flux
     parser.add_argument(
-        "-nbfl", "--nb-flux",
-        type=str,
+        "-Nes", "--nb_end_system",
+        type=int,
         default=None,
-        help="Flow interval to generate (min-max) (default: 1-10)"
+        help="Number of End System (default: 3)"
+    )
+
+
+    parser.add_argument(
+        "-Nfl", "--nb_flux",
+        type=int,
+        default=None,
+        help="Flow interval to generate (default: 3)"
     )
 
     parser.add_argument(
-        "-s", "--size",
+        "-L", "--size",
         type=str,
         default="64-1518",
         help="Packet size range in bytes (min-max) (default: 64-1518)"
     )
-    parser.add_argument(
-        "-nbes", "--nb_End_System",
-        type=int,
-        default=None,
-        help="Number of End System"
-    )
+    
 
     parser.add_argument(
-        "-bg", "--bag",
+        "-BAG", "--bag",
         type=str,
         default="128-16384",
         help="BAG interval in us (min-max) (default: 128-16384)"
     )
+    parser.add_argument(
+        "-C", "--capacity_port",
+        type=float,
+        default=100.0,
+        help="Capacity of each output port in Mbps (default: 100.0)"
+    )
 
     # Arguments pour la politique et le contrôle
     parser.add_argument(
-        "-policy", "--policy_service",
+        "-Policy", "--policy_service",
         type=str,
         choices=["FIFO", "FP/FIFO"],
         default="FIFO",
         help="Switch service policy (default: FIFO)"
     )
 
-
+    
     # Autres arguments
     parser.add_argument(
-        "--seed",
+        "-Se","--seed",
         type=int,
         default=None,
         help="Seed for the random number generator (default: clock-based)"
     )
 
     parser.add_argument(
-        "-o", "--output",
+        "-O", "--output",
         type=str,
         default="Generator_Output.json",
         help="Output file for JSON results (default:Generator_Output.json)"
@@ -905,17 +906,12 @@ def main():
             return (val, val)  # Valeur unique
         return (int(parts[0]), int(parts[1]))
 
-    #Get the interval associated with each flow
-    nb_flux_range=parse_interval(args.nb_flux)
+
     #Get the interval for the frame size
     taille_range = parse_interval(args.size)
     #get the interval for the BAG values
     bag_range = parse_interval(args.bag)
 
-    if args.nb_flux is None:
-        nb_flux_range = None  
-    else:
-        nb_flux_range = parse_interval(args.nb_flux)
     #Generate a seed if none is provided
     if args.seed is None:
         args.seed = int(time.time() * 1000) % 2**32
@@ -923,14 +919,16 @@ def main():
    
     gen=generateur(
         seed=args.seed,
-        nb_flux_range=nb_flux_range,
-        politique_service=args.policy_service,
-        taille=taille_range,
-        Bag=bag_range,
         nom_topologie=args.topology,
         nb_switch=args.nb_switch,
+        nb_es=args.nb_end_system,
+        nb_flux_range=args.nb_flux,
+        taille=taille_range,
+        Bag=bag_range,
         capacite_port_mbps=args.capacity_port,
-        nb_es=args.nb_End_System,
+        politique_service=args.policy_service, 
+        
+       
         
     )
     config = gen.generer()
