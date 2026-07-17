@@ -206,7 +206,7 @@ def get_num_out(port_sortie):
 
 
 def main():
-    fichier_json = 'Gen_Avec_Chemin_V5.json'
+    fichier_json = 'Generator_Output.json'
     config = lire_json(fichier_json)
     cree_fichier_ned(config)
     cree_fichier_ini(config)

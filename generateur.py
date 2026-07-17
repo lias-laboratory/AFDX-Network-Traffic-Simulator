@@ -40,7 +40,11 @@ class generateur:
                  nb_switch:int=1,priorite_max: int = 4,max_essais_admission:int = 10,capacite_port_mbps:int=100):
         self.seed=seed                                 #Get the seed
         self.rng=random.Random(seed)                   #Create an RNG from a given seed
-        self.nb_flux_range=nb_flux_range               #Get the requested number of flows
+        #Get the requested number of flows
+        if nb_flux_range is None:
+            self.nb_flux_range = 3 * nb_switch
+        elif isinstance(nb_flux_range, int):
+            self.nb_flux_range = nb_flux_range              
         self.politique_service=politique_service       #Retrieve the used service policy
         self.taille_range=taille                       #Retrieve the used data size
         self.bag_range=Bag                             #Get the used BAG interval
@@ -407,11 +411,8 @@ class generateur:
 
     #Flow Generation
     def generer_flux(self, end_systems):
-        #check if the user enters the number of flows or not
-        if isinstance(self.nb_flux_range, (list, tuple)) and len(self.nb_flux_range) == 2:
-            nb_flux = self.rng.randint(*self.nb_flux_range)
-        else:
-            nb_flux = 3 * self.nb_switch
+    
+        nb_flux = self.nb_flux_range
 
         #initialize an empty list to store the generated flows
         flows=[]  

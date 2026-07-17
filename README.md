@@ -3,7 +3,7 @@
 
 ## Description
 
-This AFDX Simulator is the open-source implementation of the configurable scenario generator for real-time Ethernet networks described in *"An Open-Source Configurable Scenario Generator for Real-Time Ethernet Networks"* (Halabi, Guidolin--Pina, Ridouard). It is a tool for generating AFDX (Avionics Full-Duplex Switched Ethernet) network traffic. It allows users to generate reproducible network configurations with different topologies and data flows, and implements admission control to manage link load with automatic routing, so that timing analysis methods can be evaluated, compared, and stress-tested on identical scenarios.
+This AFDX Simulator is the open-source implementation of the configurable scenario generator for real-time Ethernet networks described in *"An Open-Source Configurable Scenario Generator for Real-Time Ethernet Networks"*. It is a tool for generating AFDX (Avionics Full-Duplex Switched Ethernet) network traffic. It allows users to generate reproducible network configurations with different topologies and data flows, and implements admission control to manage link load with automatic routing, so that timing analysis methods can be evaluated, compared, and stress-tested on identical scenarios.
 
 
 # Cite this project
