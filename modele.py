@@ -1,75 +1,56 @@
-#debit est constant 100 mbps
-debit_mbps = 100
+#Data rate is constant at 100 Mbps
+rate = 100
 
 
-#class de port de sortie 
+#Output port class
 class Output_port:
-    def __init__(self,id:str,destination:str=None,debit_Mbps:int=0,charge_mbps:float=0.0):
-        self.id=id                     #Identifiant de port de sortie
-        self.destination=destination   #le prochain noeud(Switch/End System)
-        self.debit_Mbps=debit_Mbps     #le debit de cette port
-        self.charge_mbps=charge_mbps
+    def __init__(self,id:str,destination:str=None,bandwidth:int=0,load_mbps:float=0.0):
+        self.id=id                     #Output port ID
+        self.destination=destination   #The next node (Switch/End System)
+        self.bandwidth=bandwidth       #The port throughput
+        self.load_mbps=load_mbps       #Charge in Mbps
         
 
-#class des end System
+#End System class 
 class End_System:
     def __init__(self, id: str,output_port:Output_port):
-        self.id=id #identifiant de ES
-        #self.type=type #type de End Sytem(Source,Destination)
-        self.output_port = output_port
+        self.id=id                     #ES ID
+        self.output_port = output_port #Output port of ES
 
 
-#class de switch
+#Switch class
 class Switch:
     def __init__(self,id:str,intput_port:list[str]=None ,output_port:list[Output_port]=None):
-        self.id= id  #identifiant de switch
-        self.output_port = output_port if output_port is not None else [] #la liste de entre dans le switch
-        self.intput_port = intput_port if intput_port is not None else [] #la sortie de switch
+        self.id= id                    #Switch ID
+        self.output_port = output_port if output_port is not None else [] #The list of inputs into the switch
+        self.intput_port = intput_port if intput_port is not None else [] #The output of the switch
       
 
 
 
-#class de flux
+#Flow class 
 class Flow:
-    def __init__(self,id:str,source:str,destination:list[str],taille_bytes:int=None,priorite:int=None,bag_us:int=None):
-        self.id = id #id de Flux F1,F2,F3
-        self.source = source #la source de Flux
-        self.destination = destination #la destination de Flux
-        self.taille_bytes = taille_bytes #la taille de donne 
-        self.priorite = priorite #la priorite de flux utilise dans FP/FIFO
-        self.bag_us = bag_us #le bag le temps entre transmission
+    def __init__(self,id:str,source:str,destination:list[str],size:int=None,priority:int=0,bag:int=None):
+        self.id = id                   #Flow ID
+        self.source = source           #The source of the flow
+        self.destination = destination #The destination of the flow
+        self.size = size               #The size of the data 
+        self.priority = priority       #The priority of the flow used in FP/FIFO
+        self.bag = bag                 #The time between two transmissions
 
 
 #la topologie de systeme complet
 class configuration:
     def __init__(self,end_systems:list[End_System],switches:list[Switch],Flows=list[Flow],type:str=None):
-        self.end_systems = end_systems #les ES de reseaux (Source,Destination)
-        self.switches = switches #les switch de reseaux
-        self.Flows = Flows #les flux de reseaux
-        self.types =type #le type de topologie
+        self.end_systems = end_systems    #ES of the network (Source, Destination)
+        self.switches = switches          #The switches of the network
+        self.Flows = Flows                #The flows of the network
+        self.type =type                   #The type of topology
 
 
 
-#calculer le temps de transmission d'un donnee 
-def temps_transmission_us(taille_bytes):
-    return taille_bytes * 8 / (debit_mbps * 1_000_000) * 1_000_000
+#Calculate the transmission time of a data item
+def temps_transmission_us(size):
+    return size * 8 / (rate * 1_000_000) * 1_000_000
 
 
-#Evenement pour la simulation  
-class Event:  
-    def __init__(self, time_us: float, type: str,flow_id: str,switch_id:str):
-        self.time_us=time_us #le temps arrive cette evenement
-        self.type=type     #le type de evenement arrive ou depart ou attente
-        self.flow_id=flow_id #le id de FLUX
-        self.switch_id=switch_id #le switch qui passe ce event
-    #teste le temps le plus petit entre lui et autre temps event
-    def __lt__(self, other):
-        return self.time_us < other.time_us
-   
-    
-
-class FlowStats:
-    #statistique de flux
-    id: int =0
-    temps_arrival_us: float = 0.0 #le temps arrive au switch
-    temps_depart_us: float = 0.0 #le temps de depart
