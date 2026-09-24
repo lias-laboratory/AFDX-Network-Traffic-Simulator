@@ -879,7 +879,7 @@ class generator:
         Lmin, Lmax = self.size
 
         #Retrieve and sort the possible BAG values
-        bag_value = sorted(bag_us(*self.bag))
+        bag_value = bag_us(self.bag[0],self.bag[-1])
         bagmax = bag_value[-1] 
 
         #Minimum possible flow rate.
@@ -921,17 +921,14 @@ class generator:
             L_i = self.rng.randint(Lmin, L_max)
             #Minimum BAG required for the selected frame size
             bag_min = (L_i * 8) / R_dispo
- 
-            bag_i = None
-            #Select the smallest allowed BAG satisfying the constraint.
-            for bag_candidat in bag_value:
-                if bag_candidat >= bag_min:
-                    bag_i = bag_candidat
-                    break
 
-            #This should normally not happen because L_i was bounded using BAGmax
-            if bag_i is None: 
-                bag_i = bagmax
+            #Select a valid BAG 
+            valid_bags=[]
+            for bag in bag_value:
+                if bag >= bag_min:
+                    valid_bags.append(bag)
+
+            bag_i=self.rng.choice(bag_value)
 
             #Compute the resulting flow rate
             rho_i = (L_i * 8) / bag_i
@@ -1294,7 +1291,7 @@ def validate_parameters(topology: str,nb_switch: int,nb_es: int,nb_flux: int,siz
         #Check whether the minimum flow rate can fit within the port bandwidth
         if size is not None and bag is not None and bandwidth > 0:
             Lmin, _ = size
-            _, Bmax = bag
+            Bmax = bag[-1]
             if Bmax > 0:
                 rho_min = (Lmin * 8) / Bmax
                 if rho_min > bandwidth:
