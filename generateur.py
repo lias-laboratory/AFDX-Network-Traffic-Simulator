@@ -936,41 +936,42 @@ class generator:
 
        
         #Browse all Switch ports
-        for pid in ports_sorted:
+        for port_id in ports_sorted:
             #Retrieve the list of flows for each port.
-            flow_id_list = interference[pid]
+            flow_id_list = interference[port_id]
             #The number of flows in each port
             N_j = len(flow_id_list)
             #If the port is empty, exit the loop.
             if N_j == 0:
                 continue
             #Recover the capacity of each port
-            Rj = ports_id[pid].bandwidth
+            Rj = ports_id[port_id].bandwidth
+            #Calculate Flow accepted 
             k = sum(
-                1 for flid in flow_id_list
-                if flid in flow_accepted_ids 
+                1 for flow_id in flow_id_list
+                if flow_id in flow_accepted_ids 
             )
             #Calculate the reserved flow rate for all existing flows
             rho = max(0, (N_j - k)) * (Lmin * 8) / bagmax
             #Browse the list flows of this Port 
-            for flid in list(flow_id_list):
-                flow = flow_by_id[flid]
+            for flow_id in list(flow_id_list):
+                flow = flow_by_id[flow_id]
                 #Check if the flow is in the list of Allowed flows.
-                if flid not in flow_accepted_ids:
+                if flow_id not in flow_accepted_ids:
                     continue
                 #Retrieve the flow rate 
                 rho = (flow.size * 8) /flow.bag 
                 #Otherwise, add the flow rate to the current port load.
-                R_now[pid] += rho 
+                R_now[port_id] += rho 
             
             #Try to accepted the remaining flows traversing this port
-            for flid in flow_id_list:
+            for flow_id in flow_id_list:
                 #Flow already accepted 
-                if flid in flow_accepted_ids:
+                if flow_id in flow_accepted_ids:
                     continue
-                flow = flow_by_id[flid]
+                flow = flow_by_id[flow_id]
                 #Calculate remaining port capacity
-                capacity_disp = Rj - R_now[pid] - rho
+                capacity_disp = Rj - R_now[port_id] - rho
                 #Retrieve the choice of L, bag and the rho
                 Li, bagi, rhoi = tir_L_bag(capacity_disp)
                 #Assign this choice to your flow.
@@ -981,13 +982,15 @@ class generator:
                     if self.policy == "FP/FIFO" else 0
                 )
                 #Add the flow rate to the current port load.
-                R_now[pid] += rhoi
-                flow_accepted_ids.add(flid)
+                R_now[port_id] += rhoi
+                flow_accepted_ids.add(flow_id)
                 k += 1
         
-        #Recover the accepted and rejected Flows
-        flow_accepted = [flow_by_id[flid] for flid in flow_accepted_ids]
-
+        #Recover the accepted Flows
+        flow_accepted = sorted(
+             (flow_by_id[flid] for flid in flow_accepted_ids),
+                key=lambda fl: int(fl.id[1:])
+            )   
         #Affects the load on all switch ports
         for pid, load in R_now.items():
             port = ports_id[pid]
@@ -1091,7 +1094,7 @@ def save_results(configuration,nom_fichier):
             })
     #Write to JSON File
     with open(nom_fichier,"w") as f:
-        json.dump(results,f)
+        json.dump(results,f,indent=2, ensure_ascii=False)
 
 
 
